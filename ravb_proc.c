@@ -146,7 +146,6 @@ module_param(debug, bool, 0440);
  *  priv->phy_interface = PHY_INTERFACE_MODE_XXX
  *  priv->msg_enable = {n}
  *  priv->speed = 10/100/1000
- *  priv->duplex 1 = FD, 0 = HD;
  *  priv->no_ether_link:1
  *  priv->ether_link_active_low:1
  */
@@ -533,12 +532,10 @@ static int stats_show_network_phy(struct seq_file *m, void *v)
 	seq_printf(m,
 		   "Link:      %s\n"
 		   "Speed:     %u\n"
-		   "Duplex:    %s\n"
 		   "ID:        %u\n"
 		   "Interface: %u (%s)\n",
 		   priv->link ? "Up" : "Down",
 		   priv->speed,
-		   priv->duplex ? "Full" : "Half",
 		   phydev->phy_id,
 		   priv->phy_interface,
 		   query_phy_interface(priv->phy_interface));
@@ -764,9 +761,9 @@ static const struct file_operations stats_proc_fops = {
  *
  * @param  arg     Pointer to ravb_proc_info in which created the timer
  */
-static void proc_timer_update(unsigned long arg)
+static void proc_timer_update(struct timer_list *t)
 {
-	struct ravb_proc_info_t *info = (struct ravb_proc_info_t *)arg;
+	struct ravb_proc_info_t *info = from_timer(info, t, timer);
 	struct ravb_proc_stats_t *stats;
 	struct ravb_proc_stats_collect_t *collect_prev;
 	struct ravb_proc_stats_collect_t *collect;
@@ -819,13 +816,10 @@ static void proc_timer_initialise(void)
 	struct ravb_proc_info_t *info = &ravb_proc_info;
 
 	/* fill the data for our timer function */
-	init_timer(&info->timer);
+	timer_setup(&info->timer, proc_timer_update, 0);
 
 	/* register the timer */
-	info->timer.data     = (unsigned long)info;
-	info->timer.function = proc_timer_update;
 	info->timer.expires  = jiffies + (unsigned long)HZ;
-
 	add_timer(&info->timer);
 }
 

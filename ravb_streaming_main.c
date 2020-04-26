@@ -400,7 +400,7 @@ static struct ravb_user_page *get_userpage(void)
 	userpage = vzalloc(sizeof(*userpage));
 	if (unlikely(!userpage))
 		goto err_alloc;
-	page = alloc_page(GFP_KERNEL | GFP_DMA | __GFP_COLD);
+	page = alloc_page(GFP_KERNEL | GFP_DMA);
 	if (unlikely(!page))
 		goto err_allocpage;
 	page_dma = dma_map_page(pdev_dev, page, 0, PAGE_SIZE, DMA_FROM_DEVICE);
@@ -1923,12 +1923,7 @@ static void ravb_streaming_vm_close(struct vm_area_struct *vma)
 {
 }
 
-#if KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE
-static int ravb_streaming_vm_fault(struct vm_fault *vmf)
-#else
-static int ravb_streaming_vm_fault(struct vm_area_struct *area,
-				   struct vm_fault *vmf)
-#endif
+static vm_fault_t ravb_streaming_vm_fault(struct vm_fault *vmf)
 {
 	return VM_FAULT_SIGBUS;
 }
@@ -2076,7 +2071,7 @@ static long ravb_map_page_compat(struct file *file, unsigned long parm)
 	if (ret)
 		return ret;
 
-	if (!access_ok(VERIFY_READ, pdma, sizeof(*pdma)))
+	if (!access_ok(pdma, sizeof(*pdma)))
 		goto failed;
 	if (__get_user(dma32.dma_paddr, &pdma->dma_paddr) ||
 	    __get_user(dma_vaddr, &pdma->dma_vaddr) ||
@@ -2103,7 +2098,7 @@ static long ravb_unmap_page_compat(struct file *file, unsigned long parm)
 		return -EFAULT;
 
 	pdma = compat_alloc_user_space(sizeof(*pdma));
-	if (!access_ok(VERIFY_WRITE, pdma, sizeof(*pdma)))
+	if (!access_ok(pdma, sizeof(*pdma)))
 		return -EFAULT;
 	if (__put_user(dma32.dma_paddr, &pdma->dma_paddr) ||
 	    __put_user((void __user *)(unsigned long)dma32.dma_vaddr,
